@@ -1,0 +1,229 @@
+import { create } from "zustand";
+
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error("Error writing to localStorage", error);
+  }
+};
+
+const loadFromLocalStorage = (key, fallback) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch (error) {
+    console.error("Error reading from localStorage", error);
+    return fallback;
+  }
+};
+
+export const useErpStore = create((set, get) => {
+  const initialEmployees = loadFromLocalStorage("erp_employees", []);
+  const initialDepartments = loadFromLocalStorage("erp_departments", []);
+  const initialAnnouncements = loadFromLocalStorage("erp_announcements", []);
+  const initialTasks = loadFromLocalStorage("erp_tasks", []);
+  const initialLeaves = loadFromLocalStorage("erp_leaves", []);
+  const initialTickets = loadFromLocalStorage("erp_tickets", []);
+
+  const savedRole = loadFromLocalStorage("erp_active_role", "Employee");
+
+  return {
+    employees: initialEmployees,
+    departments: initialDepartments,
+    announcements: initialAnnouncements,
+    tasks: initialTasks,
+    leaves: initialLeaves,
+    tickets: initialTickets,
+    activeRole: savedRole,
+
+    setActiveRole: (role) => {
+      set({ activeRole: role });
+      saveToLocalStorage("erp_active_role", role);
+    },
+
+    // Employee Actions (HR & Super Admin)
+    addEmployee: (employeeData) => {
+      const employees = get().employees;
+      const newEmp = {
+        id: `emp_${Date.now()}`,
+        fullName: employeeData.fullName,
+        employeeId: employeeData.employeeId || `EMP${new Date().getFullYear()}${Math.floor(100 + Math.random() * 900)}`,
+        doj: employeeData.doj || new Date().toISOString().split("T")[0],
+        email: employeeData.email,
+        phoneNumber: employeeData.phoneNumber,
+        pan: employeeData.pan || "",
+        aadharNumber: employeeData.aadharNumber || "",
+        dob: employeeData.dob || "",
+        designation: employeeData.designation,
+        department: employeeData.department,
+        resume: employeeData.resume || "",
+        role: employeeData.role || "Employee",
+        salary: employeeData.salary || { base: 45000, allowances: 8000, deductions: 3000 }
+      };
+
+      const updated = [...employees, newEmp];
+      set({ employees: updated });
+      saveToLocalStorage("erp_employees", updated);
+      return newEmp;
+    },
+
+    updateEmployeeProfile: (id, updatedFields) => {
+      const employees = get().employees;
+      const updated = employees.map((emp) => {
+        if (emp.id === id) {
+          return { ...emp, ...updatedFields };
+        }
+        return emp;
+      });
+      set({ employees: updated });
+      saveToLocalStorage("erp_employees", updated);
+    },
+
+    deleteEmployee: (id) => {
+      const employees = get().employees;
+      const updated = employees.filter((emp) => emp.id !== id);
+      set({ employees: updated });
+      saveToLocalStorage("erp_employees", updated);
+    },
+
+    // Announcement Actions (HR & Super Admin)
+    addAnnouncement: (title, content, category) => {
+      const announcements = get().announcements;
+      const newAnn = {
+        id: `ann_${Date.now()}`,
+        title,
+        content,
+        category,
+        date: new Date().toISOString().split("T")[0],
+        author: "System"
+      };
+      const updated = [newAnn, ...announcements];
+      set({ announcements: updated });
+      saveToLocalStorage("erp_announcements", updated);
+    },
+
+    deleteAnnouncement: (id) => {
+      const announcements = get().announcements;
+      const updated = announcements.filter((a) => a.id !== id);
+      set({ announcements: updated });
+      saveToLocalStorage("erp_announcements", updated);
+    },
+
+    // Task Actions (Manager & Super Admin)
+    addTask: (taskData) => {
+      const tasks = get().tasks;
+      const employees = get().employees;
+
+      const assignedEmployee = employees.find((emp) => emp.id === taskData.assignedTo);
+
+      const newTask = {
+        id: `task_${Date.now()}`,
+        title: taskData.title,
+        description: taskData.description,
+        assignedTo: taskData.assignedTo,
+        assignedToName: assignedEmployee ? assignedEmployee.fullName : "Unknown Employee",
+        assignedBy: taskData.assignedBy || "system",
+        assignedByName: taskData.assignedByName || "System",
+        status: "Assigned",
+        priority: taskData.priority || "Medium",
+        dueDate: taskData.dueDate || new Date().toISOString().split("T")[0]
+      };
+
+      const updated = [newTask, ...tasks];
+      set({ tasks: updated });
+      saveToLocalStorage("erp_tasks", updated);
+    },
+
+    updateTaskStatus: (taskId, status) => {
+      const tasks = get().tasks;
+      const updated = tasks.map((t) => (t.id === taskId ? { ...t, status } : t));
+      set({ tasks: updated });
+      saveToLocalStorage("erp_tasks", updated);
+    },
+
+    deleteTask: (taskId) => {
+      const tasks = get().tasks;
+      const updated = tasks.filter((t) => t.id !== taskId);
+      set({ tasks: updated });
+      saveToLocalStorage("erp_tasks", updated);
+    },
+
+    // Leave Actions
+    applyLeave: (leaveData) => {
+      const leaves = get().leaves;
+
+      const newLeave = {
+        id: `leave_${Date.now()}`,
+        employeeId: leaveData.employeeId || "guest",
+        employeeName: leaveData.employeeName || "Guest",
+        type: leaveData.type,
+        startDate: leaveData.startDate,
+        endDate: leaveData.endDate,
+        reason: leaveData.reason,
+        status: "Pending",
+        appliedDate: new Date().toISOString().split("T")[0]
+      };
+
+      const updated = [newLeave, ...leaves];
+      set({ leaves: updated });
+      saveToLocalStorage("erp_leaves", updated);
+    },
+
+    updateLeaveStatus: (leaveId, status) => {
+      const leaves = get().leaves;
+      const updated = leaves.map((l) => (l.id === leaveId ? { ...l, status } : l));
+      set({ leaves: updated });
+      saveToLocalStorage("erp_leaves", updated);
+    },
+
+    // Support Tickets Actions
+    createTicket: (ticketData) => {
+      const tickets = get().tickets;
+
+      const newTicket = {
+        id: `tkt_${Date.now()}`,
+        employeeId: ticketData.employeeId || "guest",
+        employeeName: ticketData.employeeName || "Guest",
+        category: ticketData.category,
+        title: ticketData.title,
+        description: ticketData.description,
+        priority: ticketData.priority || "Medium",
+        status: "Pending",
+        createdAt: new Date().toISOString().split("T")[0]
+      };
+
+      const updated = [newTicket, ...tickets];
+      set({ tickets: updated });
+      saveToLocalStorage("erp_tickets", updated);
+    },
+
+    updateTicketStatus: (ticketId, status) => {
+      const tickets = get().tickets;
+      const updated = tickets.map((t) => (t.id === ticketId ? { ...t, status } : t));
+      set({ tickets: updated });
+      saveToLocalStorage("erp_tickets", updated);
+    },
+
+    // Department Actions (Super Admin)
+    addDepartment: (name, headName) => {
+      const departments = get().departments;
+      const newDept = {
+        id: `dept_${Date.now()}`,
+        name,
+        head: headName || "Unassigned",
+        employeeCount: 0
+      };
+      const updated = [...departments, newDept];
+      set({ departments: updated });
+      saveToLocalStorage("erp_departments", updated);
+    },
+
+    deleteDepartment: (id) => {
+      const departments = get().departments;
+      const updated = departments.filter((d) => d.id !== id);
+      set({ departments: updated });
+      saveToLocalStorage("erp_departments", updated);
+    }
+  };
+});
