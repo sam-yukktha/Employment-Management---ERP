@@ -79,6 +79,7 @@ input[type="password"] {
   font-size: 14px;
   transition: all 0.3s ease;
   background: #f7fafc;
+  color: #2d3748;
 }
 
 .form-control:focus,
