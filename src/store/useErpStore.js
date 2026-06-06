@@ -19,14 +19,33 @@ const loadFromLocalStorage = (key, fallback) => {
 };
 
 export const useErpStore = create((set, get) => {
+  // One-time cleanup for starting completely fresh (0 departments, 0 tasks, etc.)
+  if (typeof window !== "undefined" && window.localStorage) {
+    const isFresh = localStorage.getItem("erp_fresh_initialized_v3");
+    if (!isFresh) {
+      localStorage.removeItem("erp_employees");
+      localStorage.removeItem("erp_departments");
+      localStorage.removeItem("erp_announcements");
+      localStorage.removeItem("erp_tasks");
+      localStorage.removeItem("erp_leaves");
+      localStorage.removeItem("erp_tickets");
+      localStorage.removeItem("erp_active_role");
+      localStorage.setItem("erp_fresh_initialized_v3", "true");
+    }
+    const isRoleReset = localStorage.getItem("erp_role_reset_v1");
+    if (!isRoleReset) {
+      localStorage.removeItem("erp_active_role");
+      localStorage.setItem("erp_role_reset_v1", "true");
+    }
+  }
+
   const initialEmployees = loadFromLocalStorage("erp_employees", []);
   const initialDepartments = loadFromLocalStorage("erp_departments", []);
   const initialAnnouncements = loadFromLocalStorage("erp_announcements", []);
   const initialTasks = loadFromLocalStorage("erp_tasks", []);
   const initialLeaves = loadFromLocalStorage("erp_leaves", []);
   const initialTickets = loadFromLocalStorage("erp_tickets", []);
-
-  const savedRole = loadFromLocalStorage("erp_active_role", "Employee");
+  const initialSalarySlips = loadFromLocalStorage("erp_salary_slips", []);
 
   return {
     employees: initialEmployees,
@@ -35,11 +54,11 @@ export const useErpStore = create((set, get) => {
     tasks: initialTasks,
     leaves: initialLeaves,
     tickets: initialTickets,
-    activeRole: savedRole,
+    salarySlips: initialSalarySlips,
+    activeRole: "",
 
     setActiveRole: (role) => {
       set({ activeRole: role });
-      saveToLocalStorage("erp_active_role", role);
     },
 
     // Employee Actions (HR & Super Admin)
@@ -59,7 +78,7 @@ export const useErpStore = create((set, get) => {
         department: employeeData.department,
         resume: employeeData.resume || "",
         role: employeeData.role || "Employee",
-        salary: employeeData.salary || { base: 45000, allowances: 8000, deductions: 3000 }
+        salary: employeeData.salary || null
       };
 
       const updated = [...employees, newEmp];
@@ -224,6 +243,31 @@ export const useErpStore = create((set, get) => {
       const updated = departments.filter((d) => d.id !== id);
       set({ departments: updated });
       saveToLocalStorage("erp_departments", updated);
+    },
+
+    // Salary Slips Actions (HR & Super Admin)
+    addSalarySlip: (slipData) => {
+      const salarySlips = get().salarySlips;
+      const newSlip = {
+        id: `slip_${Date.now()}`,
+        employeeId: slipData.employeeId,
+        employeeName: slipData.employeeName || "Unknown",
+        month: slipData.month,
+        base: Number(slipData.base) || 0,
+        allowances: Number(slipData.allowances) || 0,
+        deductions: Number(slipData.deductions) || 0,
+        createdAt: new Date().toISOString().split("T")[0]
+      };
+      const updated = [newSlip, ...salarySlips];
+      set({ salarySlips: updated });
+      saveToLocalStorage("erp_salary_slips", updated);
+    },
+
+    deleteSalarySlip: (id) => {
+      const salarySlips = get().salarySlips;
+      const updated = salarySlips.filter((s) => s.id !== id);
+      set({ salarySlips: updated });
+      saveToLocalStorage("erp_salary_slips", updated);
     }
   };
 });

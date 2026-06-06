@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useErpStore } from "../store/useErpStore";
+import CustomSelect from "./CustomSelect";
 
-const Header = ({ activeTab }) => {
+const Header = ({ activeTab, setActiveTab }) => {
   const { currentUser } = useAuthStore();
   const { activeRole, setActiveRole } = useErpStore();
   const [theme, setTheme] = useState(document.documentElement.classList.contains("light-mode") ? "light" : "dark");
@@ -49,23 +50,16 @@ const Header = ({ activeTab }) => {
       <div className="header-actions">
         {/* Role Switcher (Helper for development/demonstration) */}
         <div className="role-switcher-container">
-          <label htmlFor="dev-role-switcher" className="switcher-label">
-            Demo Role:
-          </label>
-          <div className="custom-select-wrapper">
-            <select
-              id="dev-role-switcher"
-              value={activeRole || ""}
-              onChange={(e) => setActiveRole(e.target.value)}
-              className="role-select"
-            >
-              {rolesList.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          </div>
+          <span className="switcher-label">
+            Role:
+          </span>
+          <CustomSelect
+            value={activeRole || ""}
+            onChange={(e) => setActiveRole(e.target.value)}
+            options={rolesList.map((role) => ({ value: role, label: role }))}
+            placeholder="Select Role"
+            className="role-select-custom"
+          />
         </div>
 
         {/* Theme Toggler */}
@@ -88,7 +82,11 @@ const Header = ({ activeTab }) => {
         </button>
 
         {/* User Mini Info */}
-        <div className="user-profile-badge">
+        <div 
+          className="user-profile-badge" 
+          onClick={() => setActiveTab && setActiveTab("profile")} 
+          style={{ cursor: "pointer" }}
+        >
           <div className="avatar-mini">
             {currentUser?.fullName.split(" ").map(n => n[0]).join("")}
           </div>

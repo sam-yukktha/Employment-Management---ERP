@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { AnimatedBackground } from "../../components/AnimatedBackground";
-import "./login.css";
 
 const Login = () => {
   const navigate = useNavigate();

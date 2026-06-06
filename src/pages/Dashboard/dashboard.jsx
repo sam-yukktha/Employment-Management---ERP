@@ -3,6 +3,7 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useErpStore } from "../../store/useErpStore";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
+import CustomSelect from "../../components/CustomSelect";
 
 const Dashboard = () => {
   const { currentUser } = useAuthStore();
@@ -14,6 +15,7 @@ const Dashboard = () => {
     tasks,
     leaves,
     tickets,
+    salarySlips,
     addAnnouncement,
     deleteAnnouncement,
     addTask,
@@ -27,8 +29,12 @@ const Dashboard = () => {
     updateEmployeeProfile,
     deleteEmployee,
     addDepartment,
-    deleteDepartment
+    deleteDepartment,
+    addSalarySlip,
+    deleteSalarySlip
   } = useErpStore();
+
+  const currentRole = activeRole || currentUser?.role || "Employee";
 
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -40,6 +46,7 @@ const Dashboard = () => {
   const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [selectedPayslipMonth, setSelectedPayslipMonth] = useState("");
   const [selectedEmployeeForSlip, setSelectedEmployeeForSlip] = useState(null);
+  const [selectedSlipForModal, setSelectedSlipForModal] = useState(null);
 
   // Form states
   const [newEmpForm, setNewEmpForm] = useState({
@@ -52,7 +59,7 @@ const Dashboard = () => {
     aadharNumber: "",
     dob: "",
     doj: "",
-    role: "Employee",
+    role: "",
     baseSalary: 50000,
     allowances: 10000,
     deductions: 4000
@@ -61,8 +68,9 @@ const Dashboard = () => {
   const [newDeptForm, setNewDeptForm] = useState({ name: "", head: "" });
   const [newAnnForm, setNewAnnForm] = useState({ title: "", content: "", category: "General" });
   const [newTaskForm, setNewTaskForm] = useState({ title: "", description: "", assignedTo: "", priority: "Medium", dueDate: "" });
-  const [newLeaveForm, setNewLeaveForm] = useState({ type: "Annual Leave", startDate: "", endDate: "", reason: "" });
-  const [newTicketForm, setNewTicketForm] = useState({ category: "IT Support", title: "", description: "", priority: "Medium" });
+  const [newLeaveForm, setNewLeaveForm] = useState({ type: "", startDate: "", endDate: "", reason: "" });
+  const [newTicketForm, setNewTicketForm] = useState({ category: "", title: "", description: "", priority: "" });
+  const [newSlipForm, setNewSlipForm] = useState({ employeeId: "", month: "", base: "", allowances: "", deductions: "" });
   const [profileEditForm, setProfileEditForm] = useState({});
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
@@ -91,13 +99,53 @@ const Dashboard = () => {
     setIsEditingProfile(false);
   };
 
-  // Helper to generate months for payslips
-  const payslipMonths = [
-    { name: "May 2026", base: 1.0 },
-    { name: "April 2026", base: 1.0 },
-    { name: "March 2026", base: 1.0 },
-    { name: "February 2026", base: 1.0 }
-  ];
+  const handleAddEmpSubmit = (e) => {
+    e.preventDefault();
+    addEmployee({
+      fullName: newEmpForm.fullName,
+      email: newEmpForm.email,
+      phoneNumber: newEmpForm.phoneNumber,
+      designation: newEmpForm.designation,
+      department: newEmpForm.department,
+      pan: newEmpForm.pan,
+      aadharNumber: newEmpForm.aadharNumber,
+      dob: newEmpForm.dob,
+      doj: newEmpForm.doj,
+      role: newEmpForm.role,
+      salary: {
+        base: Number(newEmpForm.baseSalary),
+        allowances: Number(newEmpForm.allowances),
+        deductions: Number(newEmpForm.deductions)
+      }
+    });
+    setShowAddEmpModal(false);
+    // Reset Form
+    setNewEmpForm({
+      fullName: "", email: "", phoneNumber: "", designation: "", department: "",
+      pan: "", aadharNumber: "", dob: "", doj: "", role: "",
+      baseSalary: 50000, allowances: 10000, deductions: 4000
+    });
+  };
+
+  const handleAddSalarySlipSubmit = (e) => {
+    e.preventDefault();
+    if (!newSlipForm.employeeId || !newSlipForm.month || !newSlipForm.base) return;
+
+    addSalarySlip({
+      employeeId: newSlipForm.employeeId,
+      employeeName: newSlipForm.employeeName || employees.find(x => x.id === newSlipForm.employeeId)?.fullName || "Unknown",
+      month: newSlipForm.month,
+      base: Number(newSlipForm.base),
+      allowances: Number(newSlipForm.allowances) || 0,
+      deductions: Number(newSlipForm.deductions) || 0
+    });
+
+    setNewSlipForm({ employeeId: "", month: "", base: "", allowances: "", deductions: "" });
+    alert("Salary slip generated successfully.");
+  };
+
+  // Filter salary slips for the selected employee target
+  const getSlipsForTarget = (targetId) => salarySlips.filter(s => s.employeeId === targetId);
 
   // ==========================================
   // RENDER: OVERVIEW TAB
@@ -124,7 +172,7 @@ const Dashboard = () => {
     return (
       <div className="overview-tab fade-in">
         <div className="stats-grid">
-          {activeRole === "Super Admin" || activeRole === "HR" || activeRole === "Manager" ? (
+          {currentRole === "Super Admin" || currentRole === "HR" || currentRole === "Manager" ? (
             <>
               <div className="glass-card stat-card">
                 <div className="stat-icon-wrapper success-glow">👤</div>
@@ -266,7 +314,7 @@ const Dashboard = () => {
           </div>
           <div className="profile-title-block">
             <h2>{pUser.fullName}</h2>
-            <span className="badge badge-info">{pUser.designation}</span>
+            {pUser.designation && <span className="badge badge-info">{pUser.designation}</span>}
             <span className="profile-dept-text">{pUser.department}</span>
           </div>
           {!isEditingProfile && (
@@ -420,7 +468,7 @@ const Dashboard = () => {
   // RENDER: ANNOUNCEMENTS TAB
   // ==========================================
   const renderAnnouncements = () => {
-    const canPublish = activeRole === "Super Admin" || activeRole === "HR";
+    const canPublish = currentRole === "Super Admin" || currentRole === "HR";
 
     const handleAnnSubmit = (e) => {
       e.preventDefault();
@@ -509,7 +557,7 @@ const Dashboard = () => {
   // RENDER: TASKS TAB
   // ==========================================
   const renderTasks = () => {
-    const isManager = activeRole === "Manager" || activeRole === "Super Admin";
+    const isManager = currentRole === "Manager" || currentRole === "Super Admin";
     const myTaskList = tasks.filter(t => t.assignedTo === currentUser.id);
 
     const handleTaskSubmit = (e) => {
@@ -539,30 +587,26 @@ const Dashboard = () => {
 
               <div className="form-group">
                 <label>Assign To</label>
-                <select
+                <CustomSelect
                   value={newTaskForm.assignedTo}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, assignedTo: e.target.value })}
-                  className="form-control"
-                  required
-                >
-                  <option value="">Select Employee...</option>
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.designation})</option>
-                  ))}
-                </select>
+                  options={employees.map(emp => ({ value: emp.id, label: `${emp.fullName} (${emp.designation})` }))}
+                  placeholder="Select Employee..."
+                />
               </div>
 
               <div className="form-group">
                 <label>Priority</label>
-                <select
+                <CustomSelect
                   value={newTaskForm.priority}
                   onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value })}
-                  className="form-control"
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
+                  options={[
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" }
+                  ]}
+                  placeholder="Select Priority"
+                />
               </div>
 
               <div className="form-group">
@@ -685,7 +729,7 @@ const Dashboard = () => {
   // RENDER: LEAVE REQUESTS TAB
   // ==========================================
   const renderLeaves = () => {
-    const isApprover = activeRole === "HR" || activeRole === "Manager" || activeRole === "Super Admin";
+    const isApprover = currentRole === "HR" || currentRole === "Manager" || currentRole === "Super Admin";
     const myLeaveHistory = leaves.filter(l => l.employeeId === currentUser.id);
 
     const handleLeaveSubmit = (e) => {
@@ -698,23 +742,23 @@ const Dashboard = () => {
 
     return (
       <div className="leaves-tab fade-in">
-        <div className="leaves-grid-layout">
+        <div className={`leaves-grid-layout ${!isApprover ? "single-panel-layout" : ""}`}>
           {/* Employee Request Form */}
-          <div className="glass-card form-panel">
-            <h2>Apply for Leave</h2>
+          <div className="glass-card form-panel leave-form-panel">
+            <h2 style={{ textAlign: 'center' }}>Apply for Leave</h2>
             <form onSubmit={handleLeaveSubmit}>
               <div className="form-group">
                 <label>Leave Type</label>
-                <select
+                <CustomSelect
                   value={newLeaveForm.type}
                   onChange={(e) => setNewLeaveForm({ ...newLeaveForm, type: e.target.value })}
-                  className="form-control"
-                >
-                  <option value="Annual Leave">Annual Leave</option>
-                  <option value="Sick Leave">Sick Leave</option>
-                  <option value="Casual Leave">Casual Leave</option>
-                  <option value="Maternity/Paternity Leave">Maternity/Paternity Leave</option>
-                </select>
+                  options={[
+                    { value: "Sick Leave", label: "Sick Leave" },
+                    { value: "Casual Leave", label: "Casual Leave" },
+                    { value: "Maternity/Paternity Leave", label: "Maternity/Paternity Leave" }
+                  ]}
+                  placeholder="Leave Type"
+                />
               </div>
 
               <div className="grid-2-col">
@@ -788,7 +832,7 @@ const Dashboard = () => {
 
         {/* History Table */}
         <div className="glass-card table-panel" style={{ marginTop: "24px" }}>
-          <h2>My Leave History</h2>
+          <h2 style={{ textAlign: "center", marginBottom: "20px" }}>My Leave History</h2>
           <div className="table-container">
             <table className="custom-table">
               <thead>
@@ -834,17 +878,13 @@ const Dashboard = () => {
     // HR can generate or review everyone's payslip.
     // For standard display, we display for current user or selected employee.
     const payslipTarget = selectedEmployeeForSlip || currentUser;
-
-    const openPayslip = (month) => {
-      setSelectedPayslipMonth(month);
-      setShowPayslipModal(true);
-    };
+    const targetSlips = getSlipsForTarget(payslipTarget.id);
 
     return (
       <div className="salary-tab glass-card fade-in">
-        <div className="salary-header-area">
+        <div className="salary-header-area" style={{ textAlign: 'center', marginBottom: '8px' }}>
           <h2>Salary Slip Records</h2>
-          {activeRole !== "Employee" && (
+          {currentRole && currentRole !== "Employee" && (
             <div className="salary-filters">
               <label htmlFor="salary-user-select" style={{ marginRight: "10px", fontSize: "0.85rem", fontWeight: 600 }}>Review Employee Salary:</label>
               <select
@@ -866,9 +906,89 @@ const Dashboard = () => {
           )}
         </div>
 
-        <p className="text-muted" style={{ marginBottom: "20px" }}>
-          Viewing monthly payroll statements generated for <strong>{payslipTarget.fullName}</strong> ({payslipTarget.designation}).
+        <p className="text-muted" style={{ marginBottom: '20px', textAlign: 'center' }}>
+          Payroll overview for <strong>{payslipTarget.fullName}</strong>
         </p>
+
+        {/* Add Salary Slip Form for HR/Admin */}
+        {(currentRole === "HR" || currentRole === "Super Admin") && (
+          <div className="glass-card form-panel" style={{ marginBottom: "24px", padding: "20px" }}>
+            <h3 style={{ marginBottom: "16px", fontSize: "1.2rem", fontWeight: 600, color: "var(--primary)" }}>Generate New Salary Slip</h3>
+            <form onSubmit={handleAddSalarySlipSubmit} className="horizontal-form-grid">
+              <div className="form-group">
+                <label>Select Employee</label>
+                <select
+                  value={newSlipForm.employeeId}
+                  onChange={(e) => {
+                    const emp = employees.find(x => x.id === e.target.value);
+                    setNewSlipForm({
+                      ...newSlipForm,
+                      employeeId: e.target.value,
+                      employeeName: emp ? emp.fullName : ""
+                    });
+                  }}
+                  className="form-control"
+                  required
+                >
+                  <option value="">Choose Employee...</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.designation})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Payslip Month</label>
+                <input
+                  type="text"
+                  placeholder="e.g. June 2026"
+                  value={newSlipForm.month}
+                  onChange={(e) => setNewSlipForm({ ...newSlipForm, month: e.target.value })}
+                  className="form-control"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Basic Salary (₹)</label>
+                <input
+                  type="number"
+                  placeholder="Basic Salary"
+                  value={newSlipForm.base}
+                  onChange={(e) => setNewSlipForm({ ...newSlipForm, base: e.target.value })}
+                  className="form-control"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Allowances (₹)</label>
+                <input
+                  type="number"
+                  placeholder="Allowances"
+                  value={newSlipForm.allowances}
+                  onChange={(e) => setNewSlipForm({ ...newSlipForm, allowances: e.target.value })}
+                  className="form-control"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Deductions (₹)</label>
+                <input
+                  type="number"
+                  placeholder="Deductions"
+                  value={newSlipForm.deductions}
+                  onChange={(e) => setNewSlipForm({ ...newSlipForm, deductions: e.target.value })}
+                  className="form-control"
+                />
+              </div>
+
+              <div className="form-submit-row" style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end" }}>
+                <button type="submit" className="btn btn-primary">Generate Slip</button>
+              </div>
+            </form>
+          </div>
+        )}
 
         <div className="table-container">
           <table className="custom-table">
@@ -883,27 +1003,49 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {payslipMonths.map((item, index) => {
-                const base = payslipTarget.salary?.base || 45000;
-                const allowances = payslipTarget.salary?.allowances || 8000;
-                const deductions = payslipTarget.salary?.deductions || 3000;
+              {targetSlips.map((slip) => {
+                const base = slip.base || 0;
+                const allowances = slip.allowances || 0;
+                const deductions = slip.deductions || 0;
                 const net = base + allowances - deductions;
 
                 return (
-                  <tr key={index}>
-                    <td><strong>{item.name}</strong></td>
+                  <tr key={slip.id}>
+                    <td><strong>{slip.month}</strong></td>
                     <td>₹{base.toLocaleString()}</td>
                     <td>₹{allowances.toLocaleString()}</td>
                     <td>₹{deductions.toLocaleString()}</td>
                     <td><strong className="text-primary">₹{net.toLocaleString()}</strong></td>
                     <td>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openPayslip(item.name)}>
-                        🔍 View Slip
-                      </button>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => {
+                          setSelectedSlipForModal(slip);
+                          setSelectedPayslipMonth(slip.month);
+                          setShowPayslipModal(true);
+                        }}>
+                          🔍 View Slip
+                        </button>
+                        {(currentRole === "HR" || currentRole === "Super Admin") && (
+                          <button className="btn btn-danger btn-sm" onClick={() => {
+                            if (window.confirm("Are you sure you want to delete this salary slip?")) {
+                              deleteSalarySlip(slip.id);
+                            }
+                          }}>
+                            ✕ Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
               })}
+              {targetSlips.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="text-muted" style={{ textAlign: "center", padding: "20px" }}>
+                    No salary slips added yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -915,48 +1057,50 @@ const Dashboard = () => {
   // RENDER: SUPPORT TICKETS TAB
   // ==========================================
   const renderSupport = () => {
-    const isSupportAgent = activeRole === "HR" || activeRole === "Super Admin";
+    const isSupportAgent = currentRole === "HR" || currentRole === "Super Admin";
     const myTicketHistory = tickets.filter(t => t.employeeId === currentUser.id);
 
     const handleTicketSubmit = (e) => {
       e.preventDefault();
       if (!newTicketForm.title || !newTicketForm.description) return;
       createTicket(newTicketForm);
-      setNewTicketForm({ category: "IT Support", title: "", description: "", priority: "Medium" });
+      setNewTicketForm({ category: "", title: "", description: "", priority: "" });
       alert("Ticket submitted successfully. The IT/HR desk will review it shortly.");
     };
 
     return (
       <div className="support-tab fade-in">
-        <div className="leaves-grid-layout">
+        <div className={`leaves-grid-layout ${!isSupportAgent ? "single-panel-layout" : ""}`}>
           {/* Raise a Ticket Form */}
           <div className="glass-card form-panel">
-            <h2>Raise a Support Ticket</h2>
+            <h2 style={{ textAlign: "center", marginBottom: "20px", fontSize: "1.4rem" }}>Raise a Support Ticket</h2>
             <form onSubmit={handleTicketSubmit}>
               <div className="form-group">
                 <label>Helpdesk Category</label>
-                <select
+                <CustomSelect
                   value={newTicketForm.category}
                   onChange={(e) => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
-                  className="form-control"
-                >
-                  <option value="IT Support">IT Support & hardware</option>
-                  <option value="HR Operations">HR & payroll queries</option>
-                  <option value="Facility Management">Facilities & office workspace</option>
-                </select>
+                  options={[
+                    { value: "IT Support", label: "IT & Technical queries" },
+                    { value: "HR Operations", label: "HR & payroll queries" },
+                    { value: "Facility Management", label: "Facilities & office workspace" }
+                  ]}
+                  placeholder="Select Category"
+                />
               </div>
 
               <div className="form-group">
                 <label>Priority</label>
-                <select
+                <CustomSelect
                   value={newTicketForm.priority}
                   onChange={(e) => setNewTicketForm({ ...newTicketForm, priority: e.target.value })}
-                  className="form-control"
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
+                  options={[
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" }
+                  ]}
+                  placeholder="Select Priority"
+                />
               </div>
 
               <div className="form-group">
@@ -1020,7 +1164,7 @@ const Dashboard = () => {
 
         {/* History Table */}
         <div className="glass-card table-panel" style={{ marginTop: "24px" }}>
-          <h2>My Support Tickets History</h2>
+          <h2 style={{ textAlign: "center", marginBottom: "20px" }}>My Support Tickets History</h2>
           <div className="table-container">
             <table className="custom-table">
               <thead>
@@ -1070,35 +1214,7 @@ const Dashboard = () => {
   // RENDER: EMPLOYEES DIRECTORY
   // ==========================================
   const renderEmployees = () => {
-    const isHr = activeRole === "HR" || activeRole === "Super Admin";
-
-    const handleAddEmpSubmit = (e) => {
-      e.preventDefault();
-      addEmployee({
-        fullName: newEmpForm.fullName,
-        email: newEmpForm.email,
-        phoneNumber: newEmpForm.phoneNumber,
-        designation: newEmpForm.designation,
-        department: newEmpForm.department,
-        pan: newEmpForm.pan,
-        aadharNumber: newEmpForm.aadharNumber,
-        dob: newEmpForm.dob,
-        doj: newEmpForm.doj,
-        role: newEmpForm.role,
-        salary: {
-          base: Number(newEmpForm.baseSalary),
-          allowances: Number(newEmpForm.allowances),
-          deductions: Number(newEmpForm.deductions)
-        }
-      });
-      setShowAddEmpModal(false);
-      // Reset Form
-      setNewEmpForm({
-        fullName: "", email: "", phoneNumber: "", designation: "", department: "",
-        pan: "", aadharNumber: "", dob: "", doj: "", role: "Employee",
-        baseSalary: 50000, allowances: 10000, deductions: 4000
-      });
-    };
+    const isHr = currentRole === "HR" || currentRole === "Super Admin";
 
     const handleEditClick = (emp) => {
       setEditingEmpId(emp.id);
@@ -1115,11 +1231,9 @@ const Dashboard = () => {
       <div className="employees-tab glass-card fade-in">
         <div className="panel-header" style={{ marginBottom: "20px" }}>
           <h2>Employee Directory</h2>
-          {isHr && (
-            <button className="btn btn-primary" onClick={() => setShowAddEmpModal(true)}>
-              + Add Employee
-            </button>
-          )}
+          <button className="btn btn-primary" onClick={() => setShowAddEmpModal(true)}>
+            + Add Employee
+          </button>
         </div>
 
         <div className="table-container">
@@ -1165,15 +1279,12 @@ const Dashboard = () => {
                             </div>
                             <div className="form-group">
                               <label>Department</label>
-                              <select
+                              <CustomSelect
                                 value={editEmpForm.department || ""}
                                 onChange={(e) => setEditEmpForm({ ...editEmpForm, department: e.target.value })}
-                                className="form-control"
-                              >
-                                {departments.map(d => (
-                                  <option key={d.id} value={d.name}>{d.name}</option>
-                                ))}
-                              </select>
+                                options={departments.map(d => ({ value: d.name, label: d.name }))}
+                                placeholder="Select Department"
+                              />
                             </div>
                           </div>
 
@@ -1210,16 +1321,17 @@ const Dashboard = () => {
                           <div className="grid-3-col">
                             <div className="form-group">
                               <label>Role Privilege</label>
-                              <select
+                              <CustomSelect
                                 value={editEmpForm.role || ""}
                                 onChange={(e) => setEditEmpForm({ ...editEmpForm, role: e.target.value })}
-                                className="form-control"
-                              >
-                                <option value="Employee">Employee</option>
-                                <option value="Manager">Manager</option>
-                                <option value="HR">HR Admin</option>
-                                <option value="Super Admin">Super Admin</option>
-                              </select>
+                                options={[
+                                  { value: "Employee", label: "Employee" },
+                                  { value: "Manager", label: "Manager" },
+                                  { value: "HR", label: "HR Admin" },
+                                  { value: "Super Admin", label: "Super Admin" }
+                                ]}
+                                placeholder="Select Role"
+                              />
                             </div>
                             <div className="form-group">
                               <label>Base Salary (₹)</label>
@@ -1265,7 +1377,9 @@ const Dashboard = () => {
                     </td>
                     <td>
                       <div>Privilege: <strong>{emp.role}</strong></div>
-                      <div className="text-primary" style={{ fontWeight: 600 }}>₹{emp.salary?.base.toLocaleString()}/mo</div>
+                      <div className="text-primary" style={{ fontWeight: 600 }}>
+                        {emp.salary?.base ? `₹${emp.salary.base.toLocaleString()}/mo` : "—"}
+                      </div>
                     </td>
                     {isHr && (
                       <td>
@@ -1284,164 +1398,6 @@ const Dashboard = () => {
           </table>
         </div>
 
-        {/* Modal: Add Employee */}
-        {showAddEmpModal && (
-          <div className="modal-backdrop">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h2>Add New Employee Profile</h2>
-                <button className="btn btn-secondary btn-sm" onClick={() => setShowAddEmpModal(false)}>✕</button>
-              </div>
-              <form onSubmit={handleAddEmpSubmit}>
-                <div className="modal-body">
-                  <div className="grid-2-col">
-                    <div className="form-group">
-                      <label>Full Name</label>
-                      <input
-                        type="text"
-                        value={newEmpForm.fullName}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, fullName: e.target.value })}
-                        className="form-control"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Email Address</label>
-                      <input
-                        type="email"
-                        value={newEmpForm.email}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, email: e.target.value })}
-                        className="form-control"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid-2-col">
-                    <div className="form-group">
-                      <label>Phone Number</label>
-                      <input
-                        type="text"
-                        value={newEmpForm.phoneNumber}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, phoneNumber: e.target.value })}
-                        className="form-control"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Designation</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Tech Lead"
-                        value={newEmpForm.designation}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, designation: e.target.value })}
-                        className="form-control"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid-2-col">
-                    <div className="form-group">
-                      <label>Department</label>
-                      <select
-                        value={newEmpForm.department}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, department: e.target.value })}
-                        className="form-control"
-                        required
-                      >
-                        <option value="">Select Department...</option>
-                        {departments.map(d => (
-                          <option key={d.id} value={d.name}>{d.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Role Privilege</label>
-                      <select
-                        value={newEmpForm.role}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, role: e.target.value })}
-                        className="form-control"
-                      >
-                        <option value="Employee">Employee (Developer/Staff)</option>
-                        <option value="Manager">Manager</option>
-                        <option value="HR">HR Admin</option>
-                        <option value="Super Admin">Super Admin</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid-3-col">
-                    <div className="form-group">
-                      <label>Base Salary (₹)</label>
-                      <input
-                        type="number"
-                        value={newEmpForm.baseSalary}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, baseSalary: Number(e.target.value) })}
-                        className="form-control"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Allowances (₹)</label>
-                      <input
-                        type="number"
-                        value={newEmpForm.allowances}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, allowances: Number(e.target.value) })}
-                        className="form-control"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Deductions (₹)</label>
-                      <input
-                        type="number"
-                        value={newEmpForm.deductions}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, deductions: Number(e.target.value) })}
-                        className="form-control"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid-3-col">
-                    <div className="form-group">
-                      <label>PAN Card</label>
-                      <input
-                        type="text"
-                        value={newEmpForm.pan}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, pan: e.target.value.toUpperCase() })}
-                        className="form-control"
-                        maxLength={10}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Aadhaar Card</label>
-                      <input
-                        type="text"
-                        value={newEmpForm.aadharNumber}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, aadharNumber: e.target.value })}
-                        className="form-control"
-                        placeholder="0000-0000-0000"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Date of Joining</label>
-                      <input
-                        type="date"
-                        value={newEmpForm.doj}
-                        onChange={(e) => setNewEmpForm({ ...newEmpForm, doj: e.target.value })}
-                        className="form-control"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-primary">Create Profile</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddEmpModal(false)}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -1543,11 +1499,22 @@ const Dashboard = () => {
   // RENDER: PAYSLIP MODAL DETAIL
   // ==========================================
   const renderPayslipModal = () => {
-    const payslipTarget = selectedEmployeeForSlip || currentUser;
-    const base = payslipTarget.salary?.base || 45000;
-    const allowances = payslipTarget.salary?.allowances || 8000;
-    const deductions = payslipTarget.salary?.deductions || 3000;
+    if (!selectedSlipForModal) return null;
+
+    const base = selectedSlipForModal.base || 0;
+    const allowances = selectedSlipForModal.allowances || 0;
+    const deductions = selectedSlipForModal.deductions || 0;
     const net = base + allowances - deductions;
+
+    const payslipTarget = employees.find(emp => emp.id === selectedSlipForModal.employeeId) ||
+                          (currentUser.id === selectedSlipForModal.employeeId ? currentUser : null) ||
+                          {
+                            fullName: selectedSlipForModal.employeeName || "Unknown Employee",
+                            designation: "Employee",
+                            department: "Operations",
+                            doj: new Date().toISOString().split("T")[0],
+                            employeeId: "EMP-TEMP"
+                          };
 
     const handlePrint = () => {
       window.print();
@@ -1651,6 +1618,180 @@ const Dashboard = () => {
     );
   };
 
+  // ==========================================
+  // RENDER: ADD EMPLOYEE MODAL DETAIL
+  // ==========================================
+  const renderAddEmpModal = () => {
+    return (
+      <div className="modal-backdrop">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h2>Add New Employee Profile</h2>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowAddEmpModal(false)}>✕</button>
+          </div>
+          <form onSubmit={handleAddEmpSubmit}>
+            <div className="modal-body">
+              <div className="grid-2-col">
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    value={newEmpForm.fullName}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, fullName: e.target.value })}
+                    className="form-control"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    value={newEmpForm.email}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, email: e.target.value })}
+                    className="form-control"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid-2-col">
+                <div className="form-group">
+                  <label>Phone Number</label>
+                  <input
+                    type="text"
+                    value={newEmpForm.phoneNumber}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, phoneNumber: e.target.value })}
+                    className="form-control"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Designation</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Tech Lead"
+                    value={newEmpForm.designation}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, designation: e.target.value })}
+                    className="form-control"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid-2-col">
+                <div className="form-group">
+                  <label>Department</label>
+                  <CustomSelect
+                    value={newEmpForm.department}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, department: e.target.value })}
+                    options={[
+                      { value: "Engineering", label: "Engineering" },
+                      { value: "Human Resources", label: "Human Resources" },
+                      { value: "Finance", label: "Finance" },
+                      { value: "Marketing", label: "Marketing" },
+                      { value: "Sales", label: "Sales" },
+                      { value: "Operations", label: "Operations" },
+                      { value: "IT Support", label: "IT Support" },
+                      { value: "Design", label: "Design" },
+                      { value: "Legal", label: "Legal" },
+                      { value: "Administration", label: "Administration" },
+                      ...departments.filter(d => ![
+                        'Engineering','Human Resources','Finance','Marketing','Sales',
+                        'Operations','IT Support','Design','Legal','Administration'
+                      ].includes(d.name)).map(d => ({ value: d.name, label: d.name }))
+                    ]}
+                    placeholder="Select Department..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Role Privilege</label>
+                  <CustomSelect
+                    value={newEmpForm.role}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, role: e.target.value })}
+                    options={[
+                      { value: "Employee", label: "Employee" },
+                      { value: "Manager", label: "Manager" },
+                      { value: "HR", label: "HR Admin" },
+                      { value: "Super Admin", label: "Super Admin" }
+                    ]}
+                    placeholder="Select Role..."
+                  />
+                </div>
+              </div>
+
+              <div className="grid-3-col">
+                <div className="form-group">
+                  <label>Base Salary (₹)</label>
+                  <input
+                    type="number"
+                    value={newEmpForm.baseSalary}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, baseSalary: Number(e.target.value) })}
+                    className="form-control"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Allowances (₹)</label>
+                  <input
+                    type="number"
+                    value={newEmpForm.allowances}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, allowances: Number(e.target.value) })}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Deductions (₹)</label>
+                  <input
+                    type="number"
+                    value={newEmpForm.deductions}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, deductions: Number(e.target.value) })}
+                    className="form-control"
+                  />
+                </div>
+              </div>
+
+              <div className="grid-3-col">
+                <div className="form-group">
+                  <label>PAN Card</label>
+                  <input
+                    type="text"
+                    value={newEmpForm.pan}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, pan: e.target.value.toUpperCase() })}
+                    className="form-control"
+                    maxLength={10}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Aadhaar Card</label>
+                  <input
+                    type="text"
+                    value={newEmpForm.aadharNumber}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, aadharNumber: e.target.value })}
+                    className="form-control"
+                    placeholder="0000-0000-0000"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Date of Joining</label>
+                  <input
+                    type="date"
+                    value={newEmpForm.doj}
+                    onChange={(e) => setNewEmpForm({ ...newEmpForm, doj: e.target.value })}
+                    className="form-control"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="submit" className="btn btn-primary">Create Profile</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowAddEmpModal(false)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   // Switch tabs
   const renderTabContent = () => {
     switch (activeTab) {
@@ -1685,7 +1826,7 @@ const Dashboard = () => {
       {/* Main Panel */}
       <main className="main-content">
         {/* Header bar */}
-        <Header activeTab={activeTab} />
+        <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* Viewport container */}
         <div className="dashboard-viewport">
@@ -1695,6 +1836,9 @@ const Dashboard = () => {
 
       {/* Render Payslip Modal when activated */}
       {showPayslipModal && renderPayslipModal()}
+
+      {/* Render Add Employee Modal when activated */}
+      {showAddEmpModal && renderAddEmpModal()}
     </div>
   );
 };

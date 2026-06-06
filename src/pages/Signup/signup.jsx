@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { AnimatedBackground } from "../../components/AnimatedBackground";
-import "../Login/login.css";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -79,8 +78,8 @@ export default function Signup() {
   return (
     <>
       <AnimatedBackground />
-      <div className="login-container">
-      <div className="login-card">
+      <div className="login-page">
+      <div className="login-card glass-panel">
         <h1>Create Account</h1>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -96,7 +95,7 @@ export default function Signup() {
               onChange={handleChange}
               placeholder="Enter your full name"
               disabled={isLoading}
-              className={validationErrors.fullName ? "input-error" : ""}
+              className={`form-control ${validationErrors.fullName ? "input-error" : ""}`}
             />
             {validationErrors.fullName && (
               <span className="validation-error">{validationErrors.fullName}</span>
@@ -113,7 +112,7 @@ export default function Signup() {
               onChange={handleChange}
               placeholder="Enter your email"
               disabled={isLoading}
-              className={validationErrors.email ? "input-error" : ""}
+              className={`form-control ${validationErrors.email ? "input-error" : ""}`}
             />
             {validationErrors.email && (
               <span className="validation-error">{validationErrors.email}</span>
@@ -130,7 +129,7 @@ export default function Signup() {
               onChange={handleChange}
               placeholder="Enter password (min 8 characters)"
               disabled={isLoading}
-              className={validationErrors.password ? "input-error" : ""}
+              className={`form-control ${validationErrors.password ? "input-error" : ""}`}
             />
             {validationErrors.password && (
               <span className="validation-error">{validationErrors.password}</span>
@@ -147,14 +146,19 @@ export default function Signup() {
               onChange={handleChange}
               placeholder="Confirm password"
               disabled={isLoading}
-              className={validationErrors.confirmPassword ? "input-error" : ""}
+              className={`form-control ${validationErrors.confirmPassword ? "input-error" : ""}`}
             />
             {validationErrors.confirmPassword && (
               <span className="validation-error">{validationErrors.confirmPassword}</span>
             )}
           </div>
 
-          <button type="submit" disabled={isLoading} className="login-button">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="btn btn-primary"
+            style={{ width: "100%", marginTop: "8px" }}
+          >
             {isLoading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
